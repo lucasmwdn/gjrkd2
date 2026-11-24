@@ -1,0 +1,303 @@
+{
+  "entities": {
+    "CriteriaConfig": {
+      "title": "CriteriaConfig",
+      "description": "Dynamic review evaluation criteria configuration including fixed area caps, signal rules, and category concreteness rules.",
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "description": "Monotonically increasing criteria version number"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        },
+        "updatedByUid": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "UID of the admin who last updated criteria"
+        },
+        "baseTrustScore": {
+          "type": "number",
+          "description": "Base trust score calculated from area base scores"
+        },
+        "areas": {
+          "type": "array",
+          "description": "Four evaluation areas with fixed max scores (구체성 30, 균형성 20, 과장도 25, 일관성 25) and floor 0"
+        },
+        "signals": {
+          "type": "array",
+          "description": "Active and historical signal rules with area, points, condition, and description"
+        },
+        "categoryCriteria": {
+          "type": "array",
+          "description": "Category-specific concreteness evaluation rules"
+        }
+      },
+      "required": ["version", "updatedAt", "baseTrustScore", "areas", "signals", "categoryCriteria"]
+    },
+    "CriteriaHistory": {
+      "title": "CriteriaHistory",
+      "description": "Public immutable changelog of approved criteria updates.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "changedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "changedDateLabel": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "proposalType": {
+          "type": "string",
+          "enum": ["add", "adjust", "modify_or_delete"]
+        },
+        "signalName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "area": {
+          "type": "string",
+          "enum": ["구체성", "균형성", "과장도", "일관성"]
+        },
+        "changeSummary": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "detailDescription": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "supportingAppealCount": {
+          "type": "number"
+        },
+        "approvedByUid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "isPublic": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "changedAt",
+        "changedDateLabel",
+        "proposalType",
+        "signalName",
+        "area",
+        "changeSummary",
+        "detailDescription",
+        "supportingAppealCount",
+        "approvedByUid",
+        "isPublic"
+      ]
+    },
+    "AppealItem": {
+      "title": "AppealItem",
+      "description": "User-submitted appeal against AI review scoring with full context and review status.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reviewText": {
+          "type": "string",
+          "maxLength": 4000
+        },
+        "rating": {
+          "type": "number"
+        },
+        "productInfo": {
+          "type": "object"
+        },
+        "aiScore": {
+          "type": "number"
+        },
+        "aiAreaScores": {
+          "type": "object"
+        },
+        "aiTierLabel": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "aiSignals": {
+          "type": "array"
+        },
+        "expectedJudgment": {
+          "type": "string",
+          "enum": ["더 믿을 만한 리뷰다", "덜 믿을 만한 리뷰다"]
+        },
+        "problematicPart": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "status": {
+          "type": "string",
+          "enum": ["대기", "반영됨", "검토 완료"]
+        },
+        "rejectionReason": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "proposalId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "reanalysisComparison": {
+          "type": "object"
+        },
+        "isPublic": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "authorId",
+        "createdAt",
+        "reviewText",
+        "aiScore",
+        "aiTierLabel",
+        "aiSignals",
+        "expectedJudgment",
+        "problematicPart",
+        "reason",
+        "status",
+        "isPublic"
+      ]
+    },
+    "CriteriaProposal": {
+      "title": "CriteriaProposal",
+      "description": "AI-generated criteria improvement proposal clustered from 3 or more pending appeals.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdByUid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "proposalType": {
+          "type": "string",
+          "enum": ["add", "adjust", "modify_or_delete"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"]
+        },
+        "signalName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "targetSignalId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["suspicious", "trust"]
+        },
+        "area": {
+          "type": "string",
+          "enum": ["구체성", "균형성", "과장도", "일관성"]
+        },
+        "proposedPoints": {
+          "type": "number"
+        },
+        "proposedAction": {
+          "type": "string",
+          "enum": ["add_signal", "adjust_points", "delete_signal", "modify_condition"]
+        },
+        "proposedCondition": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "exampleSentence": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "rationale": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "supportingAppealIds": {
+          "type": "array"
+        },
+        "supportingAppealCount": {
+          "type": "number"
+        },
+        "representativeCases": {
+          "type": "array"
+        },
+        "rejectionReason": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      },
+      "required": [
+        "id",
+        "createdByUid",
+        "createdAt",
+        "proposalType",
+        "status",
+        "signalName",
+        "area",
+        "proposedAction",
+        "rationale",
+        "supportingAppealIds",
+        "supportingAppealCount",
+        "representativeCases"
+      ]
+    }
+  },
+  "firestore": {
+    "/criteria/{docId}": {
+      "schema": { "$ref": "#/entities/CriteriaConfig" },
+      "description": "Stores the active dynamic review evaluation criteria at /criteria/active."
+    },
+    "/criteriaHistory/{historyId}": {
+      "schema": { "$ref": "#/entities/CriteriaHistory" },
+      "description": "Public immutable audit log of approved criteria changes."
+    },
+    "/appeals/{appealId}": {
+      "schema": { "$ref": "#/entities/AppealItem" },
+      "description": "Appeals submitted by users against AI review scores, including status and before/after comparisons."
+    },
+    "/proposals/{proposalId}": {
+      "schema": { "$ref": "#/entities/CriteriaProposal" },
+      "description": "Admin-only criteria change proposals clustered from 3+ pending appeals."
+    }
+  }
+}

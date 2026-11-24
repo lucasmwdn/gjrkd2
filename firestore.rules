@@ -1,0 +1,334 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global hardened primitives
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && request.auth.token.email == 'luc.asm.wdn@gmail.com';
+    }
+
+    // Validation Blueprints
+    function isValidCriteriaConfig(data) {
+      return data.keys().hasAll([
+          'version',
+          'updatedAt',
+          'baseTrustScore',
+          'areas',
+          'signals',
+          'categoryCriteria'
+        ]) &&
+        data.keys().hasOnly([
+          'version',
+          'updatedAt',
+          'updatedByUid',
+          'baseTrustScore',
+          'areas',
+          'signals',
+          'categoryCriteria'
+        ]) &&
+        data.version is int && data.version >= 1 &&
+        data.updatedAt is timestamp &&
+        (!('updatedByUid' in data) || (isValidId(data.updatedByUid) && data.updatedByUid == request.auth.uid)) &&
+        data.baseTrustScore is int && data.baseTrustScore >= 0 && data.baseTrustScore <= 100 &&
+        data.areas is list && data.areas.size() == 4 &&
+        data.areas[0] is map && data.areas[0].area == '구체성' && data.areas[0].maxScore == 30 &&
+        data.areas[0].baseScore is int && data.areas[0].baseScore >= 0 && data.areas[0].baseScore <= 30 &&
+        data.areas[1] is map && data.areas[1].area == '균형성' && data.areas[1].maxScore == 20 &&
+        data.areas[1].baseScore is int && data.areas[1].baseScore >= 0 && data.areas[1].baseScore <= 20 &&
+        data.areas[2] is map && data.areas[2].area == '과장도' && data.areas[2].maxScore == 25 &&
+        data.areas[2].baseScore is int && data.areas[2].baseScore >= 0 && data.areas[2].baseScore <= 25 &&
+        data.areas[3] is map && data.areas[3].area == '일관성' && data.areas[3].maxScore == 25 &&
+        data.areas[3].baseScore is int && data.areas[3].baseScore >= 0 && data.areas[3].baseScore <= 25 &&
+        data.signals is list && data.signals.size() >= 1 && data.signals.size() <= 50 &&
+        data.signals[0] is map &&
+        data.categoryCriteria is list && data.categoryCriteria.size() >= 1 && data.categoryCriteria.size() <= 15 &&
+        data.categoryCriteria[0] is map;
+    }
+
+    function isValidCriteriaHistory(data) {
+      return data.keys().hasAll([
+          'id',
+          'changedAt',
+          'changedDateLabel',
+          'proposalType',
+          'signalName',
+          'area',
+          'changeSummary',
+          'detailDescription',
+          'supportingAppealCount',
+          'approvedByUid',
+          'isPublic'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'changedAt',
+          'changedDateLabel',
+          'proposalType',
+          'signalName',
+          'area',
+          'changeSummary',
+          'detailDescription',
+          'supportingAppealCount',
+          'approvedByUid',
+          'isPublic'
+        ]) &&
+        isValidId(data.id) &&
+        data.changedAt is timestamp &&
+        data.changedDateLabel is string && data.changedDateLabel.size() >= 1 && data.changedDateLabel.size() <= 64 &&
+        data.proposalType in ['add', 'adjust', 'modify_or_delete'] &&
+        data.signalName is string && data.signalName.size() >= 1 && data.signalName.size() <= 120 &&
+        data.area in ['구체성', '균형성', '과장도', '일관성'] &&
+        data.changeSummary is string && data.changeSummary.size() >= 1 && data.changeSummary.size() <= 400 &&
+        data.detailDescription is string && data.detailDescription.size() >= 1 && data.detailDescription.size() <= 1000 &&
+        data.supportingAppealCount is int && data.supportingAppealCount >= 3 &&
+        isValidId(data.approvedByUid) &&
+        data.isPublic is bool && data.isPublic == true;
+    }
+
+    function isValidAppeal(data) {
+      return data.keys().hasAll([
+          'id',
+          'authorId',
+          'createdAt',
+          'reviewText',
+          'aiScore',
+          'aiTierLabel',
+          'aiSignals',
+          'expectedJudgment',
+          'problematicPart',
+          'reason',
+          'status',
+          'isPublic'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'authorId',
+          'createdAt',
+          'reviewText',
+          'rating',
+          'productInfo',
+          'aiScore',
+          'aiAreaScores',
+          'aiTierLabel',
+          'aiSignals',
+          'expectedJudgment',
+          'problematicPart',
+          'reason',
+          'status',
+          'rejectionReason',
+          'proposalId',
+          'reanalysisComparison',
+          'isPublic'
+        ]) &&
+        isValidId(data.id) &&
+        isValidId(data.authorId) &&
+        data.createdAt is timestamp &&
+        data.reviewText is string && data.reviewText.size() >= 1 && data.reviewText.size() <= 4000 &&
+        (!('rating' in data) || data.rating == null || (data.rating is int && data.rating >= 1 && data.rating <= 5)) &&
+        (!('productInfo' in data) || data.productInfo == null || data.productInfo is map) &&
+        data.aiScore is number && data.aiScore >= 0 && data.aiScore <= 100 &&
+        (!('aiAreaScores' in data) || data.aiAreaScores == null || data.aiAreaScores is map) &&
+        data.aiTierLabel is string && data.aiTierLabel.size() >= 1 && data.aiTierLabel.size() <= 60 &&
+        data.aiSignals is list && data.aiSignals.size() <= 50 &&
+        data.expectedJudgment in ['더 믿을 만한 리뷰다', '덜 믿을 만한 리뷰다'] &&
+        data.problematicPart is string && data.problematicPart.size() >= 1 && data.problematicPart.size() <= 1000 &&
+        data.reason is string && data.reason.size() >= 5 && data.reason.size() <= 2000 &&
+        data.status in ['대기', '반영됨', '검토 완료'] &&
+        (!('rejectionReason' in data) || data.rejectionReason == null || (data.rejectionReason is string && data.rejectionReason.size() <= 1000)) &&
+        (!('proposalId' in data) || data.proposalId == null || (data.proposalId is string && data.proposalId.size() <= 128)) &&
+        (!('reanalysisComparison' in data) || data.reanalysisComparison == null || data.reanalysisComparison is map) &&
+        data.isPublic is bool && data.isPublic == true;
+    }
+
+    function isValidProposalPoints(data) {
+      return data.proposedAction != 'add_signal' || (
+        data.proposedPoints is int && (
+          (data.proposedPoints >= 3 && data.proposedPoints <= 10) ||
+          (data.proposedPoints >= -10 && data.proposedPoints <= -3)
+        )
+      );
+    }
+
+    function isValidProposal(data) {
+      return data.keys().hasAll([
+          'id',
+          'createdByUid',
+          'createdAt',
+          'proposalType',
+          'status',
+          'signalName',
+          'area',
+          'proposedAction',
+          'rationale',
+          'supportingAppealIds',
+          'supportingAppealCount',
+          'representativeCases'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'createdByUid',
+          'createdAt',
+          'proposalType',
+          'status',
+          'signalName',
+          'targetSignalId',
+          'kind',
+          'area',
+          'proposedPoints',
+          'proposedAction',
+          'proposedCondition',
+          'exampleSentence',
+          'rationale',
+          'supportingAppealIds',
+          'supportingAppealCount',
+          'representativeCases',
+          'rejectionReason'
+        ]) &&
+        isValidId(data.id) &&
+        isValidId(data.createdByUid) &&
+        data.createdAt is timestamp &&
+        data.proposalType in ['add', 'adjust', 'modify_or_delete'] &&
+        data.status in ['pending', 'approved', 'rejected'] &&
+        data.signalName is string && data.signalName.size() >= 1 && data.signalName.size() <= 120 &&
+        (!('targetSignalId' in data) || data.targetSignalId == null || (data.targetSignalId is string && data.targetSignalId.size() <= 128)) &&
+        (!('kind' in data) || data.kind in ['suspicious', 'trust']) &&
+        data.area in ['구체성', '균형성', '과장도', '일관성'] &&
+        (!('proposedPoints' in data) || data.proposedPoints == null || (data.proposedPoints is int && data.proposedPoints >= -25 && data.proposedPoints <= 25 && data.proposedPoints != 0)) &&
+        data.proposedAction in ['add_signal', 'adjust_points', 'delete_signal', 'modify_condition'] &&
+        isValidProposalPoints(data) &&
+        (!('proposedCondition' in data) || data.proposedCondition == null || (data.proposedCondition is string && data.proposedCondition.size() <= 300)) &&
+        (!('exampleSentence' in data) || data.exampleSentence == null || (data.exampleSentence is string && data.exampleSentence.size() <= 500)) &&
+        data.rationale is string && data.rationale.size() >= 1 && data.rationale.size() <= 1000 &&
+        data.supportingAppealIds is list && data.supportingAppealIds.size() >= 3 && data.supportingAppealIds.size() <= 100 &&
+        data.supportingAppealIds[0] is string &&
+        data.supportingAppealCount is int && data.supportingAppealCount >= 3 &&
+        data.representativeCases is list && data.representativeCases.size() >= 1 && data.representativeCases.size() <= 2 &&
+        data.representativeCases[0] is map &&
+        (data.representativeCases.size() == 1 || data.representativeCases[1] is map) &&
+        (!('rejectionReason' in data) || data.rejectionReason == null || (data.rejectionReason is string && data.rejectionReason.size() <= 1000));
+    }
+
+    // Connection check document
+    match /test/{docId} {
+      allow get: if isValidId(docId) && docId == 'connection';
+      allow list, write: if false;
+    }
+
+    // Unused admins collection locked down (admin is strictly luc.asm.wdn@gmail.com)
+    match /admins/{uid} {
+      allow read, write: if false;
+    }
+
+    // Active dynamic criteria (/criteria/active)
+    match /criteria/{docId} {
+      allow get: if isValidId(docId) && docId == 'active';
+      allow list: if false;
+      allow create, update: if isAdmin() &&
+        isValidId(docId) &&
+        docId == 'active' &&
+        isValidCriteriaConfig(incoming()) &&
+        incoming().updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    // Public immutable criteria change history
+    match /criteriaHistory/{historyId} {
+      allow get: if isValidId(historyId) && existing().isPublic == true;
+      allow list: if existing().isPublic == true;
+      allow create: if isAdmin() &&
+        isValidId(historyId) &&
+        isValidCriteriaHistory(incoming()) &&
+        incoming().id == historyId &&
+        incoming().approvedByUid == request.auth.uid &&
+        incoming().changedAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // Appeals collection (no PII stored; public transparency list, authenticated create, admin review)
+    match /appeals/{appealId} {
+      allow get: if isValidId(appealId) && (existing().isPublic == true || isAdmin());
+      allow list: if existing().isPublic == true || isAdmin();
+      allow create: if isVerifiedUser() &&
+        isValidId(appealId) &&
+        isValidAppeal(incoming()) &&
+        incoming().id == appealId &&
+        incoming().authorId == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().status == '대기' &&
+        incoming().isPublic == true;
+      allow update: if isAdmin() &&
+        isValidId(appealId) &&
+        isValidAppeal(incoming()) &&
+        existing().status == '대기' &&
+        incoming().id == existing().id &&
+        incoming().authorId == existing().authorId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().isPublic == existing().isPublic &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'status',
+          'rejectionReason',
+          'proposalId',
+          'reanalysisComparison'
+        ]);
+      allow delete: if (isAdmin() && isValidId(appealId)) || (
+        isVerifiedUser() &&
+        isValidId(appealId) &&
+        existing().authorId == request.auth.uid &&
+        existing().status == '대기'
+      );
+    }
+
+    // Admin-only criteria change proposals
+    match /proposals/{proposalId} {
+      allow get: if isAdmin() && isValidId(proposalId);
+      allow list: if isAdmin() && existing().createdByUid == request.auth.uid;
+      allow create: if isAdmin() &&
+        isValidId(proposalId) &&
+        isValidProposal(incoming()) &&
+        incoming().id == proposalId &&
+        incoming().createdByUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().status == 'pending';
+      allow update: if isAdmin() &&
+        isValidId(proposalId) &&
+        isValidProposal(incoming()) &&
+        existing().status == 'pending' &&
+        incoming().id == existing().id &&
+        incoming().createdByUid == existing().createdByUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'status',
+          'rejectionReason',
+          'proposedPoints',
+          'proposedCondition',
+          'signalName',
+          'area'
+        ]);
+      allow delete: if isAdmin() && isValidId(proposalId);
+    }
+  }
+}
